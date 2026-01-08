@@ -1,11 +1,22 @@
 import unittest
 from pykrx import stock
+from pykrx.website.comm.util import PykrxRequestError
+from pykrx.website import krx
 import pandas as pd
 import numpy as np
 # pylint: disable-all
 # flake8: noqa
 
-class EtfTickerList(unittest.TestCase):
+
+class KrxAccessRequiredTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            raise unittest.SkipTest(str(e))
+
+class EtfTickerList(KrxAccessRequiredTest):
     def test_ticker_list(self):
         tickers = stock.get_etf_ticker_list()
         self.assertIsInstance(tickers, list)
@@ -22,7 +33,7 @@ class EtfTickerList(unittest.TestCase):
         self.assertGreater(len(tickers), 0)
 
 
-class EtnTickerList(unittest.TestCase):
+class EtnTickerList(KrxAccessRequiredTest):
     def test_ticker_list(self):
         tickers = stock.get_etn_ticker_list()
         self.assertIsInstance(tickers, list)
@@ -39,7 +50,7 @@ class EtnTickerList(unittest.TestCase):
         self.assertGreater(len(tickers), 0)
 
 
-class ElwTickerList(unittest.TestCase):
+class ElwTickerList(KrxAccessRequiredTest):
     def test_ticker_list(self):
         tickers = stock.get_elw_ticker_list()
         self.assertIsInstance(tickers, list)
@@ -53,7 +64,7 @@ class ElwTickerList(unittest.TestCase):
         tickers = stock.get_elw_ticker_list("20210103")
         self.assertIsInstance(tickers, list)
 
-class EtfOhlcvByDate(unittest.TestCase):
+class EtfOhlcvByDate(KrxAccessRequiredTest):
     def test_with_business_day(self):
         df = stock.get_etf_ohlcv_by_date("20210104", "20210108", "292340")
         #                 NAV  시가  고가  저가  종가 거래량    거래대금     기초지수
@@ -101,7 +112,7 @@ class EtfOhlcvByDate(unittest.TestCase):
         self.assertTrue(df.index[0] < df.index[-1])
 
 
-class EtfOhlcvByTicker(unittest.TestCase):
+class EtfOhlcvByTicker(KrxAccessRequiredTest):
     def test_with_business_day(self):
         df = stock.get_etf_ohlcv_by_ticker("20210325")
         #           NAV   시가   고가   저가    종가 거래량    거래대금  기초지수
@@ -119,7 +130,7 @@ class EtfOhlcvByTicker(unittest.TestCase):
         self.assertTrue(df.empty)
 
 
-class EtfPriceChange(unittest.TestCase):
+class EtfPriceChange(KrxAccessRequiredTest):
     def test_with_business_day(self):
         df = stock.get_etf_price_change_by_ticker("20210325", "20210402")
         #           시가    종가  변동폭  등락률   거래량     거래대금
@@ -147,7 +158,7 @@ class EtfPriceChange(unittest.TestCase):
         self.assertTrue(df.empty)
 
 
-class EtfPdf(unittest.TestCase):
+class EtfPdf(KrxAccessRequiredTest):
     def test_with_business_day(self):
         df = stock.get_etf_portfolio_deposit_file("152100", "20210402")
         #          계약수       금액   비중
@@ -170,7 +181,7 @@ class EtfPdf(unittest.TestCase):
         self.assertAlmostEqual(df.iloc[1, 0], -3.58)
 
 
-class EtfTradingvolumeValue(unittest.TestCase):
+class EtfTradingvolumeValue(KrxAccessRequiredTest):
     def test_investor_in_businessday(self):
         df = stock.get_etf_trading_volume_and_value("20220415", "20220422")
         #                거래량                              거래대금

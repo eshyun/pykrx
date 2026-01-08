@@ -1,12 +1,15 @@
 from setuptools import setup, find_packages
-from pykrx import __version__
+import tomllib
 
-with open("README.md", "r", encoding='UTF-8') as fh:
+with open("readme.MD", "r", encoding='UTF-8') as fh:
     long_description = fh.read()
+
+with open("pyproject.toml", "rb") as fh:
+    version = tomllib.load(fh)["project"]["version"]
 
 setup(
     name='pykrx',
-    version=__version__,
+    version=version,
     description='KRX data scraping',
     url='https://github.com/sharebook-kr/pykrx/',
     author='Brayden Jo, Jonghun Yoo',
@@ -18,7 +21,7 @@ setup(
     install_requires=['requests', 'pandas', 'datetime', 'numpy', 'xlrd',
                       'deprecated', 'multipledispatch', 'matplotlib'],
     license='MIT',
-    packages=find_packages(include=['pykrx', 'pykrx.*', 'pykrx.stock.*']),
+    packages=find_packages(include=['pykrx', 'pykrx.*']),
     package_data={
         'pykrx': ['*.ttf'],
     },

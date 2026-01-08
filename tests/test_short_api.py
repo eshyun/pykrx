@@ -1,11 +1,22 @@
 import unittest
 from pykrx import stock
+from pykrx.website.comm.util import PykrxRequestError
+from pykrx.website import krx
 import pandas as pd
 import numpy as np
 # pylint: disable-all
 # flake8: noqa
 
-class ShortStatusByDate(unittest.TestCase):
+
+class KrxAccessRequiredTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            raise unittest.SkipTest(str(e))
+
+class ShortStatusByDate(KrxAccessRequiredTest):
     def test_with_a_business_day(self):
         df = stock.get_shorting_status_by_date("20210104", "20210108", "005930")
         #           거래량 잔고수량   거래대금      잔고금액
@@ -49,7 +60,7 @@ class ShortStatusByDate(unittest.TestCase):
         self.assertTrue(df.index[0] < df.index[-1])
 
 
-class ShortVolumeByTicker(unittest.TestCase):
+class ShortVolumeByTicker(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_volume_by_ticker("20210125")
         #        공매도     매수  비중
@@ -111,7 +122,7 @@ class ShortVolumeByTicker(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortValueByTicker(unittest.TestCase):
+class ShortValueByTicker(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_value_by_ticker("20210125")
         #            공매도         매수      비중
@@ -134,7 +145,7 @@ class ShortValueByTicker(unittest.TestCase):
         self.assertTrue(same)
 
 
-class ShortVolumeByDate(unittest.TestCase):
+class ShortVolumeByDate(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_volume_by_date("20210104", "20210108", "005930")
         #           공매도      매수      비중
@@ -166,7 +177,7 @@ class ShortVolumeByDate(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortValueByDate(unittest.TestCase):
+class ShortValueByDate(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_value_by_date("20210104", "20210108", "005930")
         #                공매도           매수  비중
@@ -197,7 +208,7 @@ class ShortValueByDate(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortInvestorVolumeByDate(unittest.TestCase):
+class ShortInvestorVolumeByDate(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_investor_volume_by_date("20200106", "20200110")
         #                기관    개인    외국인  기타    합계
@@ -229,7 +240,7 @@ class ShortInvestorVolumeByDate(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortInvestorValueByDate(unittest.TestCase):
+class ShortInvestorValueByDate(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_investor_value_by_date("20200106", "20200110")
         #                     기관        개인        외국인  기타        합계
@@ -261,7 +272,7 @@ class ShortInvestorValueByDate(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortVolumeTop50(unittest.TestCase):
+class ShortVolumeTop50(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_volume_top50("20200106")
         self.assertIsInstance(df, pd.DataFrame)
@@ -284,7 +295,7 @@ class ShortVolumeTop50(unittest.TestCase):
         self.assertTrue(len(df), 50)
 
 
-class ShortBalanceTop50(unittest.TestCase):
+class ShortBalanceTop50(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_balance_top50("20200106")
         self.assertIsInstance(df, pd.DataFrame)
@@ -307,7 +318,7 @@ class ShortBalanceTop50(unittest.TestCase):
         self.assertTrue(len(df), 50)
 
 
-class ShortBalanceByTicker(unittest.TestCase):
+class ShortBalanceByTicker(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_balance_by_ticker("20210127")
         #         공매도잔고   상장주식수  공매도금액      시가총액      비중
@@ -324,7 +335,7 @@ class ShortBalanceByTicker(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class ShortBalanceByDate(unittest.TestCase):
+class ShortBalanceByDate(KrxAccessRequiredTest):
     def test_with_default_param(self):
         df = stock.get_shorting_balance_by_date("20200106", "20200110", "005930")
         #          공매도잔고  상장주식수    공매도금액      시가총액      비중

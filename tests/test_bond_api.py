@@ -1,11 +1,21 @@
 import unittest
 from pykrx import bond
+from pykrx.website.comm.util import PykrxRequestError
 import pandas as pd
 import numpy as np
 # pylint: disable-all
 # flake8: noqa
 
-class BondOtcTreasuryYiledTestByTicker(unittest.TestCase):
+
+class KrxAccessRequiredTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            bond.get_otc_treasury_yields("20220204")
+        except PykrxRequestError as e:
+            raise unittest.SkipTest(str(e))
+
+class BondOtcTreasuryYiledTestByTicker(KrxAccessRequiredTest):
     def test_holiday(self):
         df = bond.get_otc_treasury_yields("20220202")
         self.assertNotEqual(len(df), 0)
@@ -23,7 +33,7 @@ class BondOtcTreasuryYiledTestByTicker(unittest.TestCase):
         self.assertAlmostEqual(df.iloc[0, 0], 1.467)
         self.assertAlmostEqual(df.iloc[1, 0], 1.995)
 
-class BondOtcTreasuryYiledTestByDate(unittest.TestCase):
+class BondOtcTreasuryYiledTestByDate(KrxAccessRequiredTest):
     def test_business_day(self):
         df = bond.get_otc_treasury_yields("20220104", "20220203", "국고채1년")
         self.assertNotEqual(len(df), 0)

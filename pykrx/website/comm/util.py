@@ -2,10 +2,16 @@ from pandas import DataFrame
 import logging
 
 
+class PykrxRequestError(RuntimeError):
+    pass
+
+
 def dataframe_empty_handler(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except PykrxRequestError:
+            raise
         except (AttributeError, KeyError, TypeError, ValueError) as e:
             logging.info(args, kwargs)
             logging.info(e)

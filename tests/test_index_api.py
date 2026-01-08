@@ -1,11 +1,20 @@
 import unittest
 from pykrx import stock
+from pykrx.website.comm.util import PykrxRequestError
+from pykrx.website import krx
 import pandas as pd
 import numpy as np
+from unittest.mock import patch
 # pylint: disable-all
 # flake8: noqa
 
 class IndexTickerList(unittest.TestCase):
+    def setUp(self):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            self.skipTest(str(e))
+
     def test_index_list_for_a_specific_day(self):
         tickers = stock.get_index_ticker_list('20210118')
         self.assertIsInstance(tickers, list)
@@ -38,7 +47,126 @@ class IndexTickerList(unittest.TestCase):
         name = stock.get_index_ticker_name("1163")
         self.assertEqual(name, "코스피 고배당 50")
 
+    def test_index_name_raises_meaningful_error_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        with patch('requests.post', return_value=_Resp()):
+            with self.assertRaises(PykrxRequestError):
+                stock.get_index_ticker_name("1001", fallback=False)
+
+    def test_index_fallback_name_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        with patch('requests.post', return_value=_Resp()):
+            self.assertEqual(stock.get_index_ticker_name("1001", fallback=True), "코스피")
+
+    def test_index_fallback_ticker_list_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        with patch('requests.post', return_value=_Resp()):
+            self.assertEqual(stock.get_index_ticker_list("20210118", "KOSPI", fallback=True), ["1001"])
+
+    def test_index_fallback_listing_date_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        with patch('requests.post', return_value=_Resp()):
+            df = stock.get_index_listing_date("KOSPI", fallback=True)
+            self.assertIsInstance(df, pd.DataFrame)
+            self.assertFalse(df.empty)
+
+    def test_index_fallback_price_change_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+<protocol>
+  <chartdata>
+    <item data='20210104|100.0|110.0|90.0|105.0|1234'/>
+    <item data='20210105|105.0|115.0|95.0|110.0|2345'/>
+  </chartdata>
+</protocol>
+"""
+
+        with patch('requests.post', return_value=_Resp()):
+            with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
+                df = stock.get_index_price_change_by_ticker("20210101", "20210130", fallback=True)
+                self.assertIsInstance(df, pd.DataFrame)
+                self.assertFalse(df.empty)
+
+    def test_index_fallback_ohlcv_by_date_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+<protocol>
+  <chartdata>
+    <item data='20210104|100.0|110.0|90.0|105.0|1234'/>
+    <item data='20210105|105.0|115.0|95.0|110.0|2345'/>
+  </chartdata>
+</protocol>
+"""
+
+        with patch('requests.post', return_value=_Resp()):
+            with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
+                df = stock.get_index_ohlcv_by_date("20210101", "20210130", "1001", fallback=True)
+                self.assertIsInstance(df, pd.DataFrame)
+                self.assertFalse(df.empty)
+
+    def test_index_fallback_fundamental_by_date_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+<protocol>
+  <chartdata>
+    <item data='20210104|100.0|110.0|90.0|105.0|1234'/>
+    <item data='20210105|105.0|115.0|95.0|110.0|2345'/>
+  </chartdata>
+</protocol>
+"""
+
+        with patch('requests.post', return_value=_Resp()):
+            with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
+                df = stock.get_index_fundamental_by_date("20210101", "20210130", "1001", fallback=True)
+                self.assertIsInstance(df, pd.DataFrame)
+                self.assertFalse(df.empty)
+
+    def test_index_fallback_portfolio_deposit_file_when_krx_blocks(self):
+        class _Resp:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            text = "<html><title>Error - KRX</title></html>"
+
+        with patch('requests.post', return_value=_Resp()):
+            pdf = stock.get_index_portfolio_deposit_file("1001", "20210129", fallback=True)
+            self.assertIsInstance(pdf, list)
+            self.assertEqual(len(pdf), 0)
+
 class IndexPortfolioDepositFile(unittest.TestCase):
+    def setUp(self):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            self.skipTest(str(e))
+
     def test_pdf_list_width_default_params(self):
         tickers = stock.get_index_portfolio_deposit_file('1001')
         self.assertIsInstance(tickers, list)
@@ -69,6 +197,12 @@ class IndexPortfolioDepositFile(unittest.TestCase):
 
 
 class IndexOhlcvByDate(unittest.TestCase):
+    def setUp(self):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            self.skipTest(str(e))
+
     def test_ohlcv_simple(self):
         df = stock.get_index_ohlcv_by_date("20210101", "20210130", "1001")
         #                시가     고가     저가     종가      거래량         거래대금
@@ -117,6 +251,12 @@ class IndexOhlcvByDate(unittest.TestCase):
 
 
 class IndexListingDate(unittest.TestCase):
+    def setUp(self):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            self.skipTest(str(e))
+
     def test_listing_info(self):
         df = stock.get_index_listing_date()
         #                        기준시점    발표시점   기준지수  종목수
@@ -134,6 +274,12 @@ class IndexListingDate(unittest.TestCase):
 
 
 class IndexPriceChangeByTicker(unittest.TestCase):
+    def setUp(self):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            self.skipTest(str(e))
+
     def test_with_valid_business_days(self):
         df = stock.get_index_price_change_by_ticker("20210104", "20210108")
         #                           시가      종가     등락률      거래량         거래대금

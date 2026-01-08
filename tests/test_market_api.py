@@ -1,11 +1,22 @@
 import unittest
 from pykrx import stock
+from pykrx.website.comm.util import PykrxRequestError
+from pykrx.website import krx
 import pandas as pd
 import numpy as np
 # pylint: disable-all
 # flake8: noqa
 
-class StockBusinessDaysTest(unittest.TestCase):
+
+class KrxAccessRequiredTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            krx.get_index_listing_date('KOSPI')
+        except PykrxRequestError as e:
+            raise unittest.SkipTest(str(e))
+
+class StockBusinessDaysTest(KrxAccessRequiredTest):
     def test_every_month(self):
         year = 2020
         for month in range(1, 13):
@@ -21,7 +32,7 @@ class StockBusinessDaysTest(unittest.TestCase):
         self.assertIsInstance(days[0], pd._libs.tslibs.timestamps.Timestamp)
 
 
-class StockOhlcvByDateTest(unittest.TestCase):
+class StockOhlcvByDateTest(KrxAccessRequiredTest):
     def test_ohlcv_simple_call(self):
         df = stock.get_market_ohlcv_by_date("20210118", "20210126", "005930")
         #               시가    고가    저가    종가      거래량         거래대금  등락률
@@ -67,7 +78,7 @@ class StockOhlcvByDateTest(unittest.TestCase):
         self.assertEqual(df.loc['2018-05-04']['시가'], 53000)
 
 
-class StockOhlcvByTickerTest(unittest.TestCase):
+class StockOhlcvByTickerTest(KrxAccessRequiredTest):
     def test_ohlcv_for_a_day(self):
         df = stock.get_market_ohlcv_by_ticker("20210122")
         #           시가    고가    저가    종가   거래량     거래대금     등락률
@@ -106,7 +117,7 @@ class StockOhlcvByTickerTest(unittest.TestCase):
         self.assertTrue((df0 == df1).all(axis=None))
 
 
-class StockPriceChangeByTicker(unittest.TestCase):
+class StockPriceChangeByTicker(KrxAccessRequiredTest):
     def test_with_valid_business_days(self):
         df = stock.get_market_price_change_by_ticker(fromdate="20210104", todate="20210111")
         #            종목명      시가    종가  변동폭    등락률       거래량      거래대금
@@ -169,7 +180,7 @@ class StockPriceChangeByTicker(unittest.TestCase):
         self.assertEqual(samsung_not_adjusted['종가'], 51900)
 
 
-class StockFundamentalByDate(unittest.TestCase):
+class StockFundamentalByDate(KrxAccessRequiredTest):
     def test_with_valid_business_days(self):
         df = stock.get_market_fundamental_by_date("20210104", "20210108", "005930")
         #               BPS    PER   PBR   EPS   DIV   DPS
@@ -221,7 +232,7 @@ class StockFundamentalByDate(unittest.TestCase):
         self.assertEqual(temp.sum(), 6)
 
 
-class StockFundamentalByTicker(unittest.TestCase):
+class StockFundamentalByTicker(KrxAccessRequiredTest):
     def test_with_valid_a_business_day(self):
         # 20210108 friday
         df = stock.get_market_fundamental_by_ticker("20210108")
@@ -246,7 +257,7 @@ class StockFundamentalByTicker(unittest.TestCase):
         self.assertEqual(len(df), 895)
 
 
-class StockMarketCapByTicker(unittest.TestCase):
+class StockMarketCapByTicker(KrxAccessRequiredTest):
     def test_with_a_businessday(self):
         df = stock.get_market_cap_by_ticker("20210104")
         #           종가         시가총액    거래량       거래대금  상장주식수
@@ -269,7 +280,7 @@ class StockMarketCapByTicker(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
 
-class StockNetPurchasesOfEquitiesByTickerTest(unittest.TestCase):
+class StockNetPurchasesOfEquitiesByTickerTest(KrxAccessRequiredTest):
     def test_net_purchases_of_equities_is_same_0(self):
         df = stock.get_market_net_purchases_of_equities_by_ticker("20210115", "20210122")
         #               종목명  매도거래량  매수거래량   순매수거래량   매도거래대금   매수거래대금 순매수거래대금
@@ -341,7 +352,7 @@ class StockNetPurchasesOfEquitiesByTickerTest(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class StockTradingVolumeByInvestorTest(unittest.TestCase):
+class StockTradingVolumeByInvestorTest(KrxAccessRequiredTest):
     def test_trading_volume_is_same_0(self):
         #                 매도       매수    순매수
         # 투자자구분
@@ -381,7 +392,7 @@ class StockTradingVolumeByInvestorTest(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class StockTradingValueByInvestorTest(unittest.TestCase):
+class StockTradingValueByInvestorTest(KrxAccessRequiredTest):
     def test_trading_value_is_same_0(self):
         #                      매도            매수         순매수
         # 투자자구분
@@ -421,7 +432,7 @@ class StockTradingValueByInvestorTest(unittest.TestCase):
         self.assertEqual(temp.sum(), 5)
 
 
-class StockTradingValueByDateTest(unittest.TestCase):
+class StockTradingValueByDateTest(KrxAccessRequiredTest):
     def test_trading_value_is_same_0(self):
         #                 기관합계     기타법인          개인    외국인합계  전체
         # 날짜
@@ -476,7 +487,7 @@ class StockTradingValueByDateTest(unittest.TestCase):
         self.assertIsInstance(df.index[0], pd._libs.tslibs.timestamps.Timestamp)
 
 
-class StockTradingVolumeByDateTest(unittest.TestCase):
+class StockTradingVolumeByDateTest(KrxAccessRequiredTest):
     def test_trading_value_is_same_0(self):
         #            기관합계 기타법인    개인 외국인합계  전체
         # 날짜
@@ -530,7 +541,7 @@ class StockTradingVolumeByDateTest(unittest.TestCase):
         self.assertIsInstance(df.index   , pd.core.indexes.datetimes.DatetimeIndex)
         self.assertIsInstance(df.index[0], pd._libs.tslibs.timestamps.Timestamp)
 
-class StockExhaustionRatesOfForeignInvestmentByTickerTest(unittest.TestCase):
+class StockExhaustionRatesOfForeignInvestmentByTickerTest(KrxAccessRequiredTest):
     def test_kospi_for_specific_day(self):
         df = stock.get_exhaustion_rates_of_foreign_investment_by_ticker('20210118', "KOSPI")
         self.assertEqual(len(df), 917)
@@ -538,7 +549,7 @@ class StockExhaustionRatesOfForeignInvestmentByTickerTest(unittest.TestCase):
         self.assertEqual(len(df), 18)
 
 
-class StockExhaustionRatesOfForeignInvestmentByDateTest(unittest.TestCase):
+class StockExhaustionRatesOfForeignInvestmentByDateTest(KrxAccessRequiredTest):
     def test_kospi_for_specific_day(self):
         df = stock.get_exhaustion_rates_of_foreign_investment_by_date("20200120", "20200120", "005930")
         self.assertEqual(len(df), 1)
