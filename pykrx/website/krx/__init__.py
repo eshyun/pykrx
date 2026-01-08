@@ -1,19 +1,51 @@
-from .market import *
-from .etx import *
-from .bond import *
-from .future import *
 import datetime
 
-def datetime2string(dt, freq='d'):
-    if freq.upper() == 'Y':
+from .bond import *
+from .etx import *
+from .future import *
+from .krxio import (
+    clear_session_file,
+    enable_auto_login,
+    is_auto_login_enabled,
+    krx_extend_session,
+    krx_login,
+    krx_start_keepalive,
+)
+from .market import *
+
+
+def login(*args, **kwargs):
+    return krx_login(*args, **kwargs)
+
+
+def extend_session(*args, **kwargs):
+    return krx_extend_session(*args, **kwargs)
+
+
+def start_keepalive(*args, **kwargs):
+    return krx_start_keepalive(*args, **kwargs)
+
+
+def enable_auto_login_on_failure(
+    enabled: bool = True, *, allow_dup_login: bool = False
+):
+    return enable_auto_login(enabled, allow_dup_login=allow_dup_login)
+
+
+def auto_login_on_failure_enabled() -> bool:
+    return is_auto_login_enabled()
+
+
+def datetime2string(dt, freq="d"):
+    if freq.upper() == "Y":
         return dt.strftime("%Y")
-    elif freq.upper() == 'M':
+    elif freq.upper() == "M":
         return dt.strftime("%Y%m")
     else:
         return dt.strftime("%Y%m%d")
 
-def get_nearest_business_day_in_a_week(date: str = None, prev: bool = True) \
-        -> str:
+
+def get_nearest_business_day_in_a_week(date: str = None, prev: bool = True) -> str:
     """인접한 영업일을 조회한다.
 
     Args:

@@ -58,6 +58,7 @@ print(tickers)
 
 `get_market_ticker_name` 함수에 티커를 입력하면 종목이름을 반환합니다.
 ```python
+
 for ticker in stock.get_market_ticker_list():
         종목 = stock.get_market_ticker_name(ticker)
         print(종목)
@@ -1411,4 +1412,136 @@ df.head()
 2000-01-20        -             -               -           -           0          0                    이건희윤종용이윤우이학수진대제문병대                        이건희윤종용이윤우이학수진대제최도석이상현임형규
 2001-03-21        -             -               -           -           0          0    이건희윤종용이윤우이학수진대제최도석이상현임형규이기태이상완황창규한용외           이건희윤종용이학수이윤우진
 
+```
+
+## 3. KRX 데이터 조회 실패(403/로그인 요구) 안내
+
+KRX Market Data System은 환경/시점에 따라 비로그인 요청을 `403` 또는 HTML 응답으로 차단할 수 있습니다.
+
+이 경우 KRX 기반 API 호출은 빈 DataFrame으로 조용히 실패하지 않고, `PykrxRequestError` 예외를 발생시켜 원인(로그인 필요/차단 가능성)을 명확히 알립니다.
+
+지수/리스팅 관련 API는 `fallback` 옵션을 제공하며, KRX 접근이 불가능한 환경에서 제한적으로 동작할 수 있습니다.
+
+현재 기본값은 `fallback=True`입니다. (KRX 차단 시 예외 대신 빈 결과로 degrade될 수 있음)
+KRX 실패 시에도 예외를 반드시 받고 싶다면 `fallback=False`를 명시하세요.
+
+### 3-1. KRX 로그인(curl-cffi) 사용
+
+KRX Data Marketplace 계정이 있다면 `curl-cffi` 기반 로그인으로 세션 쿠키를 획득한 후, 이후 KRX 요청을 해당 세션으로 수행할 수 있습니다.
+
+```python
+from pykrx.website import krx
+
+# 1) 직접 전달 (krx.krx_login() 또는 krx.login() 사용 가능)
+krx.login(mbr_id="YOUR_ID", password="YOUR_PASSWORD")
+
+# 중복 로그인(CD011) 상태에서 기존 세션을 끊고 새로 로그인하려면
+# (사용자 확인 없이 강제 로그인을 수행하므로 주의)
+# krx.login(mbr_id="YOUR_ID", password="YOUR_PASSWORD", allow_dup_login=True)
+
+# 2) 또는 환경변수 사용
+# export KRX_MBR_ID="YOUR_ID"
+# export KRX_PASSWORD="YOUR_PASSWORD"
+# krx.krx_login()
+```
+
+자격증명 파일을 사용할 수도 있습니다.
+
+```json
+// ~/.config/krx-session/krx_credentials.json
+{ "mbrId": "YOUR_ID", "pw": "YOUR_PASSWORD" }
+```
+
+**참고**: 자격증명 파일의 기본 위치가 `~/.config/krx-session/`으로 변경되었습니다. 이는 여러 패키지(pykrx, FinanceDataReader 등)가 동일한 credential과 세션을 공유하기 위함입니다.
+
+세션 연장(로그인 유지)은 아래처럼 호출할 수 있습니다.
+
+```python
+krx.extend_session()
+
+# 25분마다 주기적으로 세션 연장(best-effort)
+ka = krx.start_keepalive(interval_seconds=25*60)
+
+# 중지
+ka.stop()
+```
+
+KRX 호출이 실패했을 때만 자동으로 로그인 후 1회 재시도하도록 설정할 수 있습니다(옵트인).
+
+```python
+from pykrx.website import krx
+
+krx.enable_auto_login_on_failure(True)
+
+# 또는 중복 로그인(CD011) 상황에서 강제 재로그인까지 허용
+# krx.enable_auto_login_on_failure(True, allow_dup_login=True)
+```
+
+`stock` 모듈 레벨에서도 동일 기능을 사용할 수 있습니다.
+
+```python
+from pykrx import stock
+
+stock.krx_login()
+stock.enable_auto_login_on_failure(True)
+```
+
+로그인에 성공하면 `pykrx.website.comm.webio`에 전역 세션이 주입되어, 이후 pykrx의 KRX 호출이 동일 세션을 사용합니다.
+
+#### 프로세스 간 세션 공유
+
+로그인에 성공하면 세션 정보가 파일(`~/.config/krx-session/session.json`)에 자동으로 저장되어 **여러 프로세스 간에 세션이 공유**됩니다. 이를 통해:
+
+- 여러 Python 스크립트가 동시에 실행되어도 중복 로그인 없이 세션 재사용
+- FinanceDataReader 등 다른 패키지와 세션 공유 가능
+- 세션은 기본 30분 TTL을 가지며, 만료 시 자동으로 재로그인
+
+세션 파일 위치는 환경 변수로 변경 가능합니다:
+
+```bash
+export KRX_SESSION_FILE="~/.my-custom-path/session.json"
+# 또는
+export KRX_SESSION_DIR="~/.my-custom-dir"  # session.json이 이 디렉토리에 생성됨
+```
+
+세션 파일을 수동으로 삭제하려면:
+
+```python
+from pykrx.website.krx import clear_session_file
+clear_session_file()
+```
+
+`fallback=True`는 **데이터 소스가 KRX가 아닌 경우에도 API 호출 자체가 실패하지 않도록** 하기 위한 옵션입니다.
+다만 대표 지수(코스피/코스닥) 일부를 제외하면, KRX 차단 상황에서 많은 지수 관련 API는 **빈 결과(DataFrame/[])로 degrade**될 수 있습니다.
+
+대표 지수(코스피/코스닥)의 일부 `get_index_*()` API는 KRX 차단 시 Naver 차트 API를 사용하여 실제 데이터를 반환할 수 있습니다.
+
+```python
+from pykrx import stock
+
+try:
+    print(stock.get_index_ticker_name("1001"))
+except Exception as e:
+    print(type(e), e)
+```
+
+```python
+from pykrx import stock
+
+# fallback 예시 (기본값: True)
+print(stock.get_index_ticker_list(market="KOSPI", fallback=True))
+print(stock.get_index_ticker_name("1001", fallback=True))
+print(stock.get_index_listing_date("KOSPI", fallback=True))
+
+# KRX 차단 시 빈 결과로 degrade될 수 있는 지수 API들
+print(stock.get_index_ohlcv_by_date("20210101", "20210130", "1001", fallback=True))
+print(stock.get_index_fundamental_by_date("20210101", "20210130", "1001", fallback=True))
+print(stock.get_index_price_change_by_ticker("20210101", "20210130", fallback=True))
+print(stock.get_index_portfolio_deposit_file("1001", "20210129", fallback=True))
+
+# KRX 차단 시에도 예외가 필요하면 fallback=False
+try:
+    print(stock.get_index_ticker_name("1001", fallback=False))
+except Exception as e:
+    print(type(e), e)
 ```
