@@ -18,6 +18,10 @@
 - KRX가 일부 API에서 `output` 대신 `OutBlock_*` 형태의 JSON을 반환하는 경우가 있어,
   `KrxWebIo`의 페이로드 검증 로직이 이를 오류로 오인하지 않도록 정상 응답으로 처리합니다.
 
+- 또한 KRX의 finder 계열 API(예: 상장종목 검색)는 `output` 대신 `block1`/`block*` 키로 데이터를 반환합니다.
+  따라서 `KrxWebIo._raise_for_error_payload()`는 `output`이 없더라도 `block*` 또는 `OutBlock*` 형태면
+  정상 응답으로 간주하도록 확장했습니다.
+
 ### 2) HTTPS 적용
 
 - KRX 요청 URL을 `https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd`로 변경했습니다.

@@ -519,17 +519,19 @@ class KrxWebIo(Post):
             raise PykrxRequestError(f"KRX returned an error payload (errorCode={err}).")
 
         has_outblock = any(str(k).startswith("OutBlock") for k in data.keys())
+        has_block = any(str(k).startswith("block") for k in data.keys())
 
         # getJsonData.cmd의 정상 응답은 보통 output 키를 포함한다.
         # 로그인 만료/차단 시 200 + JSON이더라도 output이 없거나 비정상인 경우가 있어 이를 예외로 승격.
-        if "output" not in data and not has_outblock:
+        # 다만 일부 finder 계열 API는 block1/block* 형태로 응답한다.
+        if "output" not in data and not has_outblock and not has_block:
             snippet = str(data)[:200]
             raise PykrxRequestError(
                 "KRX returned an unexpected payload without 'output'. "
                 f"KRX may require login or may be blocking automated access. Payload snippet: {snippet}"
             )
 
-        if "output" not in data and has_outblock:
+        if "output" not in data and (has_outblock or has_block):
             return
 
         output = data.get("output")

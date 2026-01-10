@@ -29,7 +29,7 @@ dependencies = [
   "deprecated>=1.2,<2",
   "multipledispatch>=1.0,<2",
   "matplotlib>=3.8,<4",
-  "curl-cffi>=0.14.0",
+  "curl-cffi>=0.7",
 ]
 
 [dependency-groups]

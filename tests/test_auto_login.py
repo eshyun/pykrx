@@ -52,6 +52,23 @@ class AutoLoginOnFailureTest(unittest.TestCase):
                 self.assertEqual(out, {"OutBlock_1": []})
                 self.assertEqual(mlogin.call_count, 0)
 
+    def test_block_payload_is_treated_as_valid(self):
+        io = _DummyIo()
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.headers = {"content-type": "application/json"}
+        resp.text = "{}"
+
+        io._parse_json = MagicMock(return_value={"block1": []})
+
+        with patch("pykrx.website.comm.webio.Post.read", return_value=resp):
+            with patch("pykrx.website.krx.krxio.krx_login") as mlogin:
+                enable_auto_login(True)
+                out = io.read()
+                self.assertEqual(out, {"block1": []})
+                self.assertEqual(mlogin.call_count, 0)
+
     def test_no_auto_login_when_disabled(self):
         io = _DummyIo()
         resp = MagicMock()
