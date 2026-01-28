@@ -22,3 +22,4 @@
 - `clear_session_file()` 함수를 추가하여 저장된 세션을 수동으로 삭제할 수 있습니다.
 - KRX 요청 실패 시 1회 자동 로그인 후 재시도하는 기능(`enable_auto_login_on_failure`)을 추가했습니다. (기본값: 활성화)
 - `stock.krx_login()` / `stock.enable_auto_login_on_failure()` wrapper를 추가했습니다.
+- 세션 파일 락을 POSIX 전용 `fcntl`에서 `portalocker`로 교체하여 Windows에서도 세션 파일 락이 동작하도록 개선했습니다.

@@ -1504,6 +1504,8 @@ export KRX_SESSION_FILE="~/.my-custom-path/session.json"
 export KRX_SESSION_DIR="~/.my-custom-dir"  # session.json이 이 디렉토리에 생성됨
 ```
 
+세션 파일은 파일 락(`portalocker`)을 사용해 **Windows를 포함한 환경**에서 프로세스 간 안전하게 공유합니다.
+
 세션 파일을 수동으로 삭제하려면:
 
 ```python

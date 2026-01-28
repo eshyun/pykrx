@@ -1,13 +1,18 @@
-import fcntl
 import json
 import os
 import threading
 import time
 from abc import abstractmethod
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    import portalocker
+except Exception:
+    portalocker = None
 
 from pykrx.website.comm.util import PykrxRequestError
 from pykrx.website.comm.webio import Get, Post, get_http_session, set_http_session
@@ -26,6 +31,18 @@ class KrxFutureIo(Get):
     @abstractmethod
     def fetch(self, **params):
         return NotImplementedError
+
+
+@contextmanager
+def _file_lock(lock_file: Path, *, shared: bool):
+    if portalocker is None:
+        yield
+        return
+
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    flags = portalocker.LOCK_SH if shared else portalocker.LOCK_EX
+    with portalocker.Lock(str(lock_file), mode="a", flags=flags):
+        yield
 
 
 def _create_curl_session():
@@ -162,13 +179,9 @@ def _save_session_to_file(session, mbr_no=None, ttl_minutes=30):
     # Write with file locking
     lock_file = session_file.parent / f"{session_file.name}.lock"
     try:
-        with open(lock_file, "w") as lock_fd:
-            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
-            try:
-                with open(session_file, "w", encoding="utf-8") as f:
-                    json.dump(session_data, f, indent=2)
-            finally:
-                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+        with _file_lock(lock_file, shared=False):
+            with open(session_file, "w", encoding="utf-8") as f:
+                json.dump(session_data, f, indent=2)
     except Exception:
         # Best effort - if locking fails, still try to save
         try:
@@ -188,13 +201,9 @@ def _load_session_from_file():
 
     try:
         # Read with file locking
-        with open(lock_file, "w") as lock_fd:
-            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_SH)
-            try:
-                with open(session_file, "r", encoding="utf-8") as f:
-                    session_data = json.load(f)
-            finally:
-                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+        with _file_lock(lock_file, shared=True):
+            with open(session_file, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
     except Exception:
         # Best effort - if locking fails, try to read anyway
         try:
@@ -223,8 +232,9 @@ def _load_session_from_file():
         # Update last_used timestamp
         session_data["last_used"] = datetime.now().isoformat()
         try:
-            with open(session_file, "w", encoding="utf-8") as f:
-                json.dump(session_data, f, indent=2)
+            with _file_lock(lock_file, shared=False):
+                with open(session_file, "w", encoding="utf-8") as f:
+                    json.dump(session_data, f, indent=2)
         except Exception:
             pass
 

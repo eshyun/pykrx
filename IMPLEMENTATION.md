@@ -47,3 +47,4 @@
 - 자격증명은 코드에 하드코딩하지 않고, 인자(`mbr_id`, `password`) 또는 환경변수(`KRX_MBR_ID`, `KRX_PASSWORD`)로 전달합니다.
 - 자격증명 파일(`KRX_CREDENTIALS_FILE` 또는 `~/.config/pykrx/krx_credentials.json`)을 통해 자동 로드를 지원합니다.
 - 세션 만료를 방지하기 위해 `/contents/MDC/MAIN/main/extendSession.cmd` 호출 helper 및 best-effort keepalive를 제공합니다.
+- 로그인 세션 파일(`~/.config/krx-session/session.json`)은 `portalocker` 기반 파일 락을 사용해 Windows를 포함한 환경에서 안전하게 공유합니다.

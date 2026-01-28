@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from pykrx.website.comm.util import PykrxRequestError
 from pykrx.website.comm.webio import get_http_session, set_http_session
 from pykrx.website.krx import krx_login
@@ -10,6 +12,7 @@ from pykrx.website.krx.krxio import (
     _load_session_from_file,
     clear_session_file,
     krx_extend_session,
+    _save_session_to_file,
 )
 
 
@@ -38,6 +41,32 @@ class KrxLoginTest(unittest.TestCase):
         self.assertIs(sess, session)
         self.assertEqual(data["MBR_NO"], "1")
         self.assertIs(get_http_session(), session)
+
+    def test_session_file_lock_and_write(self):
+        try:
+            import portalocker  # noqa: F401
+        except Exception:
+            self.skipTest("portalocker is not installed")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.environ["KRX_SESSION_DIR"] = tmpdir
+            try:
+                session = requests.Session()
+                session.cookies.set(
+                    name="_test_cookie",
+                    value="1",
+                    domain="data.krx.co.kr",
+                    path="/",
+                )
+
+                _save_session_to_file(session, mbr_no="1", ttl_minutes=1)
+
+                session_file = os.path.join(tmpdir, "session.json")
+                lock_file = os.path.join(tmpdir, "session.json.lock")
+                self.assertTrue(os.path.exists(session_file))
+                self.assertTrue(os.path.exists(lock_file))
+            finally:
+                os.environ.pop("KRX_SESSION_DIR", None)
 
     def test_krx_login_raises_on_error_code(self):
         session = MagicMock()
