@@ -23,25 +23,25 @@ maintainers = [
 urls = {Homepage = "https://github.com/sharebook-kr/pykrx/"}
 dependencies = [
   "requests>=2.31,<3",
-  "pandas>=2.0,<3",
-  "numpy>=1.23,<3",
+  "pandas>=2.0",
+  "numpy>=1.23",
   "xlrd>=2,<3",
-  "deprecated>=1.2,<2",
-  "multipledispatch>=1.0,<2",
-  "matplotlib>=3.8,<4",
+  "deprecated>=1.2",
+  "multipledispatch>=1.0",
+  "matplotlib>=3.8",
   "curl-cffi>=0.7",
   "portalocker",
 ]
 
 [dependency-groups]
 dev = [
-    "build>=1.3.0",
-    "ipdb>=0.13.13",
-    "ipython>=8.37.0",
-    "marimo>=0.18.4",
-    "pdbsublimetextsupport>=0.2",
-    "pyinstrument>=5.1.1",
-    "pytest>=9.0.2",
+    "build",
+    "ipdb",
+    "ipython",
+    "marimo",
+    "pdbsublimetextsupport",
+    "pyinstrument",
+    "pytest",
 ]
 
 
