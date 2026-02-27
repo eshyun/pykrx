@@ -11,7 +11,13 @@ from unittest.mock import patch
 class IndexTickerList(unittest.TestCase):
     def setUp(self):
         try:
-            krx.get_index_listing_date('KOSPI')
+            from pykrx.website.comm.webio import set_http_session
+
+            set_http_session(None)
+            krx.clear_session_file()
+            df = krx.get_index_listing_date('KOSPI')
+            if getattr(df, "empty", True):
+                self.skipTest("KRX access is not available in this environment")
         except PykrxRequestError as e:
             self.skipTest(str(e))
 
@@ -53,7 +59,14 @@ class IndexTickerList(unittest.TestCase):
             headers = {"content-type": "text/html"}
             text = "<html><title>Error - KRX</title></html>"
 
-        with patch('requests.post', return_value=_Resp()):
+        from pykrx.website.comm.webio import set_http_session
+        from pykrx.website.krx.market.ticker import IndexTicker
+        from pykrx.website.krx.market.core import 전체지수기본정보
+
+        set_http_session(None)
+        krx.clear_session_file()
+        IndexTicker._instance = None
+        with patch("pykrx.website.krx.market.core.전체지수기본정보.fetch", side_effect=PykrxRequestError("blocked")):
             with self.assertRaises(PykrxRequestError):
                 stock.get_index_ticker_name("1001", fallback=False)
 
@@ -63,7 +76,14 @@ class IndexTickerList(unittest.TestCase):
             headers = {"content-type": "text/html"}
             text = "<html><title>Error - KRX</title></html>"
 
-        with patch('requests.post', return_value=_Resp()):
+        from pykrx.website.comm.webio import set_http_session
+        from pykrx.website.krx.market.ticker import IndexTicker
+        from pykrx.website.krx.market.core import 전체지수기본정보
+
+        set_http_session(None)
+        krx.clear_session_file()
+        IndexTicker._instance = None
+        with patch("pykrx.website.krx.market.core.전체지수기본정보.fetch", side_effect=PykrxRequestError("blocked")):
             self.assertEqual(stock.get_index_ticker_name("1001", fallback=True), "코스피")
 
     def test_index_fallback_ticker_list_when_krx_blocks(self):
@@ -72,7 +92,14 @@ class IndexTickerList(unittest.TestCase):
             headers = {"content-type": "text/html"}
             text = "<html><title>Error - KRX</title></html>"
 
-        with patch('requests.post', return_value=_Resp()):
+        from pykrx.website.comm.webio import set_http_session
+        from pykrx.website.krx.market.ticker import IndexTicker
+        from pykrx.website.krx.market.core import 전체지수기본정보
+
+        set_http_session(None)
+        krx.clear_session_file()
+        IndexTicker._instance = None
+        with patch("pykrx.website.krx.market.core.전체지수기본정보.fetch", side_effect=PykrxRequestError("blocked")):
             self.assertEqual(stock.get_index_ticker_list("20210118", "KOSPI", fallback=True), ["1001"])
 
     def test_index_fallback_listing_date_when_krx_blocks(self):
@@ -81,7 +108,7 @@ class IndexTickerList(unittest.TestCase):
             headers = {"content-type": "text/html"}
             text = "<html><title>Error - KRX</title></html>"
 
-        with patch('requests.post', return_value=_Resp()):
+        with patch("pykrx.website.krx.market.core.전체지수기본정보.fetch", side_effect=PykrxRequestError("blocked")):
             df = stock.get_index_listing_date("KOSPI", fallback=True)
             self.assertIsInstance(df, pd.DataFrame)
             self.assertFalse(df.empty)
@@ -101,11 +128,12 @@ class IndexTickerList(unittest.TestCase):
 </protocol>
 """
 
-        with patch('requests.post', return_value=_Resp()):
+        with patch("pykrx.website.krx.market.core.개별지수시세.fetch", side_effect=PykrxRequestError("blocked")):
             with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
-                df = stock.get_index_price_change_by_ticker("20210101", "20210130", fallback=True)
-                self.assertIsInstance(df, pd.DataFrame)
-                self.assertFalse(df.empty)
+                with patch("pykrx.website.krx.get_nearest_business_day_in_a_week", side_effect=["20210104", "20210129"]):
+                    df = stock.get_index_price_change_by_ticker("20210101", "20210130", fallback=True)
+                    self.assertIsInstance(df, pd.DataFrame)
+                    self.assertFalse(df.empty)
 
     def test_index_fallback_ohlcv_by_date_when_krx_blocks(self):
         class _Resp:
@@ -122,7 +150,7 @@ class IndexTickerList(unittest.TestCase):
 </protocol>
 """
 
-        with patch('requests.post', return_value=_Resp()):
+        with patch("pykrx.website.krx.market.core.개별지수시세.fetch", side_effect=PykrxRequestError("blocked")):
             with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
                 df = stock.get_index_ohlcv_by_date("20210101", "20210130", "1001", fallback=True)
                 self.assertIsInstance(df, pd.DataFrame)
@@ -143,7 +171,7 @@ class IndexTickerList(unittest.TestCase):
 </protocol>
 """
 
-        with patch('requests.post', return_value=_Resp()):
+        with patch("pykrx.website.krx.market.core.개별지수시세.fetch", side_effect=PykrxRequestError("blocked")):
             with patch('pykrx.website.naver.core.Sise.fetch', return_value=xml):
                 df = stock.get_index_fundamental_by_date("20210101", "20210130", "1001", fallback=True)
                 self.assertIsInstance(df, pd.DataFrame)
@@ -155,7 +183,11 @@ class IndexTickerList(unittest.TestCase):
             headers = {"content-type": "text/html"}
             text = "<html><title>Error - KRX</title></html>"
 
-        with patch('requests.post', return_value=_Resp()):
+        from pykrx.website.comm.webio import set_http_session
+
+        set_http_session(None)
+        krx.clear_session_file()
+        with patch("pykrx.website.krx.market.core.지수구성종목.fetch", side_effect=PykrxRequestError("blocked")):
             pdf = stock.get_index_portfolio_deposit_file("1001", "20210129", fallback=True)
             self.assertIsInstance(pdf, list)
             self.assertEqual(len(pdf), 0)
@@ -163,7 +195,13 @@ class IndexTickerList(unittest.TestCase):
 class IndexPortfolioDepositFile(unittest.TestCase):
     def setUp(self):
         try:
-            krx.get_index_listing_date('KOSPI')
+            from pykrx.website.comm.webio import set_http_session
+
+            set_http_session(None)
+            krx.clear_session_file()
+            df = krx.get_index_listing_date('KOSPI')
+            if getattr(df, "empty", True):
+                self.skipTest("KRX access is not available in this environment")
         except PykrxRequestError as e:
             self.skipTest(str(e))
 
@@ -199,7 +237,13 @@ class IndexPortfolioDepositFile(unittest.TestCase):
 class IndexOhlcvByDate(unittest.TestCase):
     def setUp(self):
         try:
-            krx.get_index_listing_date('KOSPI')
+            from pykrx.website.comm.webio import set_http_session
+
+            set_http_session(None)
+            krx.clear_session_file()
+            df = krx.get_index_listing_date('KOSPI')
+            if getattr(df, "empty", True):
+                self.skipTest("KRX access is not available in this environment")
         except PykrxRequestError as e:
             self.skipTest(str(e))
 

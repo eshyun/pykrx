@@ -12,7 +12,25 @@ class KrxAccessRequiredTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            krx.get_index_listing_date('KOSPI')
+            from pykrx.website.comm.webio import set_http_session
+
+            set_http_session(None)
+            krx.clear_session_file()
+            df = krx.get_index_listing_date('KOSPI')
+            if getattr(df, "empty", True):
+                raise unittest.SkipTest("KRX access is not available in this environment")
+
+            # Index listing date may succeed due to cache/fallback; probe ETF endpoint directly.
+            if len(stock.get_etf_ticker_list("20210104")) == 0:
+                raise unittest.SkipTest("KRX ETF endpoints are not available in this environment")
+
+            df_etf = stock.get_etf_ohlcv_by_date("20210104", "20210108", "292340")
+            if getattr(df_etf, "empty", True):
+                raise unittest.SkipTest("KRX ETF OHLCV endpoint is not available in this environment")
+
+            # Some tests depend on ETN ticker->ISIN mapping.
+            if "580011" not in stock.get_etn_ticker_list("20220908"):
+                raise unittest.SkipTest("KRX ETN ticker mapping is not available in this environment")
         except PykrxRequestError as e:
             raise unittest.SkipTest(str(e))
 

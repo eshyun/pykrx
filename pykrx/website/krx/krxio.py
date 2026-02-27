@@ -253,6 +253,21 @@ def clear_session_file():
             pass
 
 
+def _is_logout_response(resp) -> bool:
+    """Detect a KRX 'LOGOUT' response which indicates an invalid/expired session.
+
+    KRX sometimes returns plain text 'LOGOUT' (non-JSON) when the session cookies
+    are no longer valid.
+    """
+    if resp is None:
+        return False
+    try:
+        txt = (getattr(resp, "text", "") or "")
+    except Exception:
+        return False
+    return txt.strip() == "LOGOUT"
+
+
 def krx_login(
     mbr_id: str | None = None,
     password: str | None = None,
@@ -588,6 +603,12 @@ class KrxWebIo(Post):
                     dt_s += delta + pd.to_timedelta("1 days")
                     resp = Post.read(self, **params)
                     self._raise_for_invalid_response(resp)
+                    if _is_logout_response(resp):
+                        clear_session_file()
+                        set_http_session(None)
+                        raise PykrxRequestError(
+                            "KRX returned 'LOGOUT' (expired/invalid session)."
+                        )
                     data = self._parse_json(resp)
                     self._raise_for_error_payload(data)
                     if result is None:
@@ -603,6 +624,12 @@ class KrxWebIo(Post):
                     params["endDd"] = dt_e.strftime("%Y%m%d")
                     resp = Post.read(self, **params)
                     self._raise_for_invalid_response(resp)
+                    if _is_logout_response(resp):
+                        clear_session_file()
+                        set_http_session(None)
+                        raise PykrxRequestError(
+                            "KRX returned 'LOGOUT' (expired/invalid session)."
+                        )
 
                     data = self._parse_json(resp)
                     self._raise_for_error_payload(data)
@@ -615,6 +642,12 @@ class KrxWebIo(Post):
             else:
                 resp = Post.read(self, **params)
                 self._raise_for_invalid_response(resp)
+                if _is_logout_response(resp):
+                    clear_session_file()
+                    set_http_session(None)
+                    raise PykrxRequestError(
+                        "KRX returned 'LOGOUT' (expired/invalid session)."
+                    )
                 data = self._parse_json(resp)
                 self._raise_for_error_payload(data)
                 return data

@@ -48,3 +48,9 @@
 - 자격증명 파일(`KRX_CREDENTIALS_FILE` 또는 `~/.config/pykrx/krx_credentials.json`)을 통해 자동 로드를 지원합니다.
 - 세션 만료를 방지하기 위해 `/contents/MDC/MAIN/main/extendSession.cmd` 호출 helper 및 best-effort keepalive를 제공합니다.
 - 로그인 세션 파일(`~/.config/krx-session/session.json`)은 `portalocker` 기반 파일 락을 사용해 Windows를 포함한 환경에서 안전하게 공유합니다.
+
+### 6) 세션 만료(LOGOUT) 대응
+
+- KRX는 세션 쿠키가 만료/무효화되면 일부 API에서 JSON 대신 plain text `LOGOUT`을 반환할 수 있습니다.
+- 이 경우 `KrxWebIo`는 저장된 세션 파일 및 전역 HTTP 세션을 삭제/초기화한 뒤 `PykrxRequestError`로 승격합니다.
+- 이후 기존의 auto-login 재시도 로직(`enable_auto_login_on_failure`)이 1회 로그인 후 재시도를 수행하여 복구를 시도합니다.

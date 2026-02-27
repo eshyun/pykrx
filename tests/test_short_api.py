@@ -12,7 +12,18 @@ class KrxAccessRequiredTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            krx.get_index_listing_date('KOSPI')
+            from pykrx.website.comm.webio import set_http_session
+
+            set_http_session(None)
+            krx.clear_session_file()
+            df = krx.get_index_listing_date('KOSPI')
+            if getattr(df, "empty", True):
+                raise unittest.SkipTest("KRX access is not available in this environment")
+
+            # Index listing date may succeed due to cache/fallback; probe short endpoint directly.
+            df_short = stock.get_shorting_volume_top50("20200106")
+            if getattr(df_short, "empty", True):
+                raise unittest.SkipTest("KRX short endpoints are not available in this environment")
         except PykrxRequestError as e:
             raise unittest.SkipTest(str(e))
 

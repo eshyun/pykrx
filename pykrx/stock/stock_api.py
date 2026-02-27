@@ -5,6 +5,7 @@ import re
 from typing import overload
 
 import pandas as pd
+import numpy as np
 from deprecated import deprecated
 from multipledispatch import dispatch
 from pandas import DataFrame
