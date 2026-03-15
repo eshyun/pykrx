@@ -42,6 +42,7 @@ dev = [
     "pdbsublimetextsupport",
     "pyinstrument",
     "pytest",
+    "typer>=0.24.1",
 ]
 
 

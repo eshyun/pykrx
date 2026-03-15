@@ -100,15 +100,60 @@ def _resolve_krx_credentials(mbr_id: str | None, password: str | None):
 _AUTO_LOGIN_ENABLED = True
 _AUTO_LOGIN_ALLOW_DUP_LOGIN = False
 
+_LOGIN_LOCK = threading.Lock()
+_LAST_LOGIN_ATTEMPT_AT = 0.0
+_LOGIN_THROTTLE_SECONDS = 10.0
+
 
 def enable_auto_login(enabled: bool = True, *, allow_dup_login: bool = False):
-    global _AUTO_LOGIN_ENABLED, _AUTO_LOGIN_ALLOW_DUP_LOGIN
+    global _AUTO_LOGIN_ENABLED, _AUTO_LOGIN_ALLOW_DUP_LOGIN, _LAST_LOGIN_ATTEMPT_AT
     _AUTO_LOGIN_ENABLED = bool(enabled)
     _AUTO_LOGIN_ALLOW_DUP_LOGIN = bool(allow_dup_login)
+    try:
+        _LAST_LOGIN_ATTEMPT_AT = 0.0
+    except Exception:
+        pass
 
 
 def is_auto_login_enabled() -> bool:
     return _AUTO_LOGIN_ENABLED
+
+
+def _should_attempt_auto_login(exc: Exception) -> bool:
+    """Best-effort heuristic: auto-login should only run for auth/session related failures.
+
+    KRX endpoints can fail for many reasons (service errors, temporary blocks, etc.).
+    Blindly calling login on any request failure can amplify load and increase login
+    failures (e.g. CD003).
+    """
+    msg = str(exc) or ""
+    msg_l = msg.lower()
+
+    # Explicit logout/expired-session signals
+    if "logout" in msg_l:
+        return True
+
+    # Errors raised by KrxWebIo payload validators when session is invalid/blocked.
+    if "authentication" in msg_l:
+        return True
+    if "require login" in msg_l or "requires login" in msg_l:
+        return True
+    if "unexpected payload" in msg_l and "output" in msg_l:
+        return True
+
+    return False
+
+
+def _throttled_login(*, allow_dup_login: bool):
+    global _LAST_LOGIN_ATTEMPT_AT
+    with _LOGIN_LOCK:
+        now = time.time()
+        if now - _LAST_LOGIN_ATTEMPT_AT < _LOGIN_THROTTLE_SECONDS:
+            raise PykrxRequestError(
+                "KRX auto-login throttled to avoid repeated login attempts"
+            )
+        _LAST_LOGIN_ATTEMPT_AT = now
+        return krx_login(set_global_session=True, allow_dup_login=allow_dup_login)
 
 
 def _get_session_file_path():
@@ -654,8 +699,11 @@ class KrxWebIo(Post):
 
         try:
             return _do_request()
-        except PykrxRequestError:
+        except PykrxRequestError as e:
             if not is_auto_login_enabled():
+                raise
+
+            if not _should_attempt_auto_login(e):
                 raise
 
             # Avoid infinite retry per instance
@@ -663,9 +711,7 @@ class KrxWebIo(Post):
                 raise
 
             try:
-                krx_login(
-                    set_global_session=True, allow_dup_login=_AUTO_LOGIN_ALLOW_DUP_LOGIN
-                )
+                _throttled_login(allow_dup_login=_AUTO_LOGIN_ALLOW_DUP_LOGIN)
             except Exception:
                 # If login itself fails, surface original error
                 raise
