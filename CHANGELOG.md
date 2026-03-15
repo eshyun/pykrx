@@ -5,6 +5,8 @@
 - KRX 데이터 조회 시 서버가 403/비JSON(HTML) 응답을 반환하는 경우 `KeyError: '지수명'`로 터지던 문제를 개선했습니다.
 - KRX 응답이 정상 JSON이 아니면 `PykrxRequestError`를 발생시켜 원인(로그인 필요/차단 가능성)을 명확히 알리도록 변경했습니다.
 - KRX가 세션 만료 시 plain text `LOGOUT`을 반환하는 경우, 세션 파일/전역 세션을 삭제하고 auto-login 재시도가 동작하도록 개선했습니다.
+- KRX가 HTTP 200이 아닌 응답으로도 `LOGOUT` 본문을 반환하는 경우가 있어, 상태 코드 검사보다 `LOGOUT` 감지를 우선하여 세션 정리 및 auto-login 재시도가 안정적으로 동작하도록 개선했습니다.
+- 간헐적으로 발생하는 KRX 로그인 `CD003`(서비스 에러) 상황에서, 짧은 backoff로 제한된 횟수만큼 재시도하여 일시 장애에 대한 복원력을 개선했습니다.
 - KRX가 일부 API에서 `output` 대신 `OutBlock_*` 형태의 JSON을 반환하더라도 정상 응답으로 처리하도록 개선했습니다.
 - KRX가 일부 finder 계열 API에서 `output` 대신 `block1`/`block*` 형태의 JSON을 반환하더라도 정상 응답으로 처리하도록 개선했습니다.
 - KRX 요청 URL 및 Referer를 `https://data.krx.co.kr`로 변경했습니다.

@@ -64,6 +64,61 @@ class AutoLoginOnFailureTest(unittest.TestCase):
                         self.assertGreaterEqual(mset.call_count, 1)
                         self.assertEqual(mlogin.call_count, 1)
 
+    def test_logout_response_triggers_clear_and_relogin_even_on_http_400(self):
+        io = _DummyIo()
+
+        resp1 = MagicMock()
+        resp1.status_code = 400
+        resp1.headers = {"content-type": "text/plain"}
+        resp1.text = "LOGOUT"
+
+        resp2 = MagicMock()
+        resp2.status_code = 200
+        resp2.headers = {"content-type": "application/json"}
+        resp2.text = '{"output": []}'
+
+        io._parse_json = MagicMock(return_value={"output": []})
+
+        with patch("pykrx.website.comm.webio.Post.read", side_effect=[resp1, resp2]):
+            with patch("pykrx.website.krx.krxio.clear_session_file") as mclear:
+                with patch("pykrx.website.krx.krxio.set_http_session") as mset:
+                    with patch(
+                        "pykrx.website.krx.krxio.krx_login",
+                        return_value=(None, {"MBR_NO": "1"}),
+                    ) as mlogin:
+                        enable_auto_login(True)
+                        out = io.read()
+                        self.assertEqual(out, {"output": []})
+                        self.assertEqual(mclear.call_count, 1)
+                        self.assertGreaterEqual(mset.call_count, 1)
+                        self.assertEqual(mlogin.call_count, 1)
+
+    def test_auto_login_retries_on_cd003_service_error(self):
+        io = _DummyIo()
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.headers = {"content-type": "application/json"}
+        resp.text = '{"output": []}'
+
+        io._parse_json = MagicMock(side_effect=[{}, {"output": []}])
+
+        with patch("pykrx.website.comm.webio.Post.read", return_value=resp):
+            with patch("pykrx.website.krx.krxio.time.sleep", return_value=None):
+                with patch(
+                    "pykrx.website.krx.krxio.krx_login",
+                    side_effect=[
+                        PykrxRequestError(
+                            "KRX login failed (errorCode=CD003). 서비스 에러"
+                        ),
+                        (None, {"MBR_NO": "1"}),
+                    ],
+                ) as mlogin:
+                    enable_auto_login(True)
+                    out = io.read()
+                    self.assertEqual(out, {"output": []})
+                    self.assertEqual(mlogin.call_count, 2)
+
     def test_outblock_payload_is_treated_as_valid(self):
         io = _DummyIo()
 

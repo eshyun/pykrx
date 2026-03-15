@@ -54,3 +54,10 @@
 - KRX는 세션 쿠키가 만료/무효화되면 일부 API에서 JSON 대신 plain text `LOGOUT`을 반환할 수 있습니다.
 - 이 경우 `KrxWebIo`는 저장된 세션 파일 및 전역 HTTP 세션을 삭제/초기화한 뒤 `PykrxRequestError`로 승격합니다.
 - 이후 기존의 auto-login 재시도 로직(`enable_auto_login_on_failure`)이 1회 로그인 후 재시도를 수행하여 복구를 시도합니다.
+
+### 7) 비정상 HTTP 상태에서의 `LOGOUT` 및 로그인 일시 장애 대응
+
+- 일부 환경에서는 KRX가 세션 만료를 `LOGOUT`으로 알리면서도 HTTP status가 200이 아닌 값(예: 400)으로 내려오는 사례가 있습니다.
+- 따라서 `KrxWebIo.read()`는 status code 검사보다 `LOGOUT` 본문 감지를 먼저 수행해 세션 파일/전역 세션을 정리한 뒤, auto-login 경로로 복구를 시도합니다.
+
+- 또한 KRX 로그인 API가 간헐적으로 `CD003`(서비스 에러)를 반환할 수 있어, auto-login 내부에서 소수 회(제한된 횟수) backoff 재시도를 수행하도록 보강했습니다.

@@ -104,6 +104,9 @@ _LOGIN_LOCK = threading.Lock()
 _LAST_LOGIN_ATTEMPT_AT = 0.0
 _LOGIN_THROTTLE_SECONDS = 10.0
 
+_LOGIN_RETRY_MAX_ATTEMPTS = 3
+_LOGIN_RETRY_INITIAL_BACKOFF_SECONDS = 1.0
+
 
 def enable_auto_login(enabled: bool = True, *, allow_dup_login: bool = False):
     global _AUTO_LOGIN_ENABLED, _AUTO_LOGIN_ALLOW_DUP_LOGIN, _LAST_LOGIN_ATTEMPT_AT
@@ -148,12 +151,33 @@ def _throttled_login(*, allow_dup_login: bool):
     global _LAST_LOGIN_ATTEMPT_AT
     with _LOGIN_LOCK:
         now = time.time()
-        if now - _LAST_LOGIN_ATTEMPT_AT < _LOGIN_THROTTLE_SECONDS:
-            raise PykrxRequestError(
-                "KRX auto-login throttled to avoid repeated login attempts"
-            )
-        _LAST_LOGIN_ATTEMPT_AT = now
-        return krx_login(set_global_session=True, allow_dup_login=allow_dup_login)
+        elapsed = now - _LAST_LOGIN_ATTEMPT_AT
+        if elapsed < _LOGIN_THROTTLE_SECONDS:
+            time.sleep(max(0.0, _LOGIN_THROTTLE_SECONDS - elapsed))
+        _LAST_LOGIN_ATTEMPT_AT = time.time()
+
+        last_exc = None
+        backoff = _LOGIN_RETRY_INITIAL_BACKOFF_SECONDS
+        for attempt in range(_LOGIN_RETRY_MAX_ATTEMPTS):
+            try:
+                return krx_login(
+                    set_global_session=True, allow_dup_login=allow_dup_login
+                )
+            except PykrxRequestError as e:
+                last_exc = e
+                msg = str(e) or ""
+                # Transient service-side errors are observed intermittently.
+                # Retry a few times with exponential backoff.
+                if "errorcode=cd003" in msg.lower():
+                    if attempt < _LOGIN_RETRY_MAX_ATTEMPTS - 1:
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                raise
+
+        if last_exc is not None:
+            raise last_exc
+        raise PykrxRequestError("KRX login failed")
 
 
 def _get_session_file_path():
@@ -647,13 +671,13 @@ class KrxWebIo(Post):
                     params["endDd"] = dt_tmp.strftime("%Y%m%d")
                     dt_s += delta + pd.to_timedelta("1 days")
                     resp = Post.read(self, **params)
-                    self._raise_for_invalid_response(resp)
                     if _is_logout_response(resp):
                         clear_session_file()
                         set_http_session(None)
                         raise PykrxRequestError(
                             "KRX returned 'LOGOUT' (expired/invalid session)."
                         )
+                    self._raise_for_invalid_response(resp)
                     data = self._parse_json(resp)
                     self._raise_for_error_payload(data)
                     if result is None:
@@ -668,13 +692,14 @@ class KrxWebIo(Post):
                     params["strtDd"] = dt_s.strftime("%Y%m%d")
                     params["endDd"] = dt_e.strftime("%Y%m%d")
                     resp = Post.read(self, **params)
-                    self._raise_for_invalid_response(resp)
                     if _is_logout_response(resp):
                         clear_session_file()
                         set_http_session(None)
                         raise PykrxRequestError(
                             "KRX returned 'LOGOUT' (expired/invalid session)."
                         )
+
+                    self._raise_for_invalid_response(resp)
 
                     data = self._parse_json(resp)
                     self._raise_for_error_payload(data)
@@ -686,13 +711,13 @@ class KrxWebIo(Post):
                 return result
             else:
                 resp = Post.read(self, **params)
-                self._raise_for_invalid_response(resp)
                 if _is_logout_response(resp):
                     clear_session_file()
                     set_http_session(None)
                     raise PykrxRequestError(
                         "KRX returned 'LOGOUT' (expired/invalid session)."
                     )
+                self._raise_for_invalid_response(resp)
                 data = self._parse_json(resp)
                 self._raise_for_error_payload(data)
                 return data

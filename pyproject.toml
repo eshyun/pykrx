@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykrx"
-version = "1.0.51.2"
+version = "1.0.51.3"
 description = "KRX data scraping"
 readme = "readme.MD"
 requires-python = ">=3.10"
