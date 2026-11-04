@@ -142,6 +142,16 @@ def init_singletons(tmp_path_factory):
     모든 common cassette를 하나의 YAML 파일로 합쳐서 단일 컨텍스트를 사용한다.
     singleton이 미리 초기화되면 개별 테스트에서 HTTP 요청이 불필요하다.
     """
+    # Fork-specific: avoid loading persisted session files during VCR playback.
+    import pykrx.website.krx.krxio as _krxio
+
+    _original_load_session = _krxio._load_session_from_file
+    _original_save_session = _krxio._save_session_to_file
+    _original_clear_session = _krxio.clear_session_file
+    _krxio._load_session_from_file = lambda: None
+    _krxio._save_session_to_file = lambda *args, **kwargs: None
+    _krxio.clear_session_file = lambda: None
+
     # Merge all common cassette interactions into one file
     all_interactions = []
     for fname in ["etx_ticker_init.yaml", "finder_init.yaml", "index_kind_init.yaml"]:
@@ -178,6 +188,9 @@ def init_singletons(tmp_path_factory):
             StockTicker()
     finally:
         _webio.set_session(original_session)
+        _krxio._load_session_from_file = _original_load_session
+        _krxio._save_session_to_file = _original_save_session
+        _krxio.clear_session_file = _original_clear_session
 
 
 @pytest.fixture(scope="module")
@@ -187,8 +200,15 @@ def vcr_cassette_dir():
 
 
 @pytest.fixture(scope="function")
-def vcr(vcr):
+def vcr(vcr, monkeypatch):
     """pytest-vcr: Override VCR instance to register custom matchers and load shared cassettes."""
+    # Fork-specific: never read/write persisted sessions during VCR tests.
+    import pykrx.website.krx.krxio as _krxio
+
+    monkeypatch.setattr(_krxio, "_load_session_from_file", lambda: None)
+    monkeypatch.setattr(_krxio, "_save_session_to_file", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_krxio, "clear_session_file", lambda: None)
+
     vcr.register_matcher("uri_ignore_dates", uri_without_dates)
     vcr.register_matcher("body_ignore_dates", form_body_matcher)
 
