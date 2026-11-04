@@ -21,7 +21,7 @@ from pykrx.website.comm.webio import Get, Post, get_http_session, set_http_sessi
 class KrxFutureIo(Get):
     @property
     def url(self):
-        return "http://data.krx.co.kr/comm/bldAttendant/executeForResourceBundle.cmd"
+        return "https://data.krx.co.kr/comm/bldAttendant/executeForResourceBundle.cmd"
 
     def read(self, **params):
         resp = super().read(**params)

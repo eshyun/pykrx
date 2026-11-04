@@ -151,18 +151,18 @@ def get_etf_portfolio_deposit_file(date: str, ticker: str) -> DataFrame:
 
     Returns:
         DataFrame:
-                     계약수       금액       비중
+                구성종목명	계약수	금액	시가총액	비중
             티커
-            005930   8175.0  694875000  16.531250
-            000660    972.0  126360000   2.949219
-            051910     80.0   77120000   1.849609
-            035420    219.0   65809500   1.570312
+            0724F1	ADOBE SYSTEMS INC	12.22	0	0	0.0
+            2079K3	ALPHABET INC-CL A	61.55	0	0	0.0
+            2079K1	ALPHABET INC-CL C	57.21	0	0	0.0
+            255371	AMERICAN ELECTRIC POWER	15.61	0	0	0.0
     """
 
     isin = get_etx_isin(ticker)
     df = PDF().fetch(date, isin)
-    df = df[['COMPST_ISU_CD', 'COMPST_ISU_CU1_SHRS', 'VALU_AMT', 'COMPST_RTO']]
-    df.columns = ['티커', '계약수', '금액', '비중']
+    df = df[['COMPST_ISU_CD', 'COMPST_ISU_NM', 'COMPST_ISU_CU1_SHRS', 'VALU_AMT', 'COMPST_AMT', 'COMPST_RTO']]
+    df.columns = ['티커', '구성종목명', '계약수', '금액', '시가총액', '비중']
 
     # NOTE: 웹 서버가 COMPST_ISU_CD에 ISIN과 축향형을 혼합해서 반환한다. Why?
     df['티커'] = df['티커'].apply(lambda x: x[3:9] if len(x) > 6 else x)
@@ -175,6 +175,7 @@ def get_etf_portfolio_deposit_file(date: str, ticker: str) -> DataFrame:
     df = df.astype({
         "계약수": np.float64,
         "금액": np.int64,
+        "시가총액": np.int64,
         "비중": np.float32
     })
     df = df[(df.T != 0).any()]
@@ -267,7 +268,7 @@ def get_trading_volume_and_value_by_investor(fromdate: str, todate: str) \
     Returns:
         DataFrame:
 
-            > get_etf_trading_volumne_and_value_by_investor("20220415", "20220422")
+            > get_etf_trading_volume_and_value_by_investor("20220415", "20220422")
 
                            거래량                              거래대금
                              매도        매수    순매수            매도            매수            순
@@ -314,7 +315,7 @@ def get_trading_volume_and_value_by_date(
     Returns:
         DataFrame:
 
-            > get_etf_trading_volumne_and_value_by_date("20220415", "20220422", "거래대금", "순매수")
+            > get_etf_trading_volume_and_value_by_date("20220415", "20220422", "거래대금", "순매수")
 
                                 기관    기타법인         개인        외국인 전체
             날짜
@@ -466,10 +467,10 @@ if __name__ == "__main__":
     # print( get_etf_price_deviation("20200101", "20200401", "295820"))
     # print(get_etf_tracking_error("20200101", "20200401", "295820"))
     # print(get_etf_portfolio_deposit_file("20210705", "114800"))
-    # df = get_etf_trading_volumne_and_value_by_investor("20220415", "20220422")
-    # df = get_etf_trading_volumne_and_value_by_date(
+    # df = get_etf_trading_volume_and_value_by_investor("20220415", "20220422")
+    # df = get_etf_trading_volume_and_value_by_date(
     #     "20220415", "20220422", 1, 1)
-    # df = get_etf_unbound_trading_volumne_and_value_by_investor("20220908", "20220916", "580011")
+    # df = get_etf_unbound_trading_volume_and_value_by_investor("20220908", "20220916", "580011")
     # df = get_indivisual_trading_volume_and_value_by_date("20230421", "20230428", "069500", "거래대금", "순매수")
     # df = get_indivisual_trading_volume_and_value_by_investor("20230421", "20230428", "069500")
     # df = get_indivisual_trading_volume_and_value_by_date("20230421", "20230428", "580011", "거래대금", "순매수")

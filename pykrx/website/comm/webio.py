@@ -1,6 +1,6 @@
-import requests
 from abc import abstractmethod
 
+import requests
 
 _HTTP_SESSION = None
 
@@ -14,11 +14,21 @@ def get_http_session():
     return _HTTP_SESSION
 
 
+# Backward-compatible aliases used by upstream tests/tooling.
+def set_session(session):
+    set_http_session(session)
+
+
+def get_session():
+    return get_http_session()
+
+
 class Get:
     def __init__(self):
         self.headers = {
-            "User-Agent": "Mozilla/5.0", 
-            "Referer": "https://data.krx.co.kr/"
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd",
+            "X-Requested-With": "XMLHttpRequest",
         }
 
     def read(self, **params):
@@ -39,7 +49,8 @@ class Post:
     def __init__(self, headers=None):
         self.headers = {
             "User-Agent": "Mozilla/5.0",
-            "Referer": "https://data.krx.co.kr/"
+            "Referer": "https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd",
+            "X-Requested-With": "XMLHttpRequest",
         }
         if headers is not None:
             self.headers.update(headers)
